@@ -1,0 +1,10 @@
+compose.yaml
+
+sql/create_user.sql
+
+.env
+
+__pycache__/
+
+.gemini/
+

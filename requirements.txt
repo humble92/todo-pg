@@ -1,0 +1,6 @@
+fastapi[all]
+asyncpg
+passlib[bcrypt]
+python-jose[cryptography]
+python-dotenv
+pyjwt[crypto]
