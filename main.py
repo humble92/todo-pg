@@ -302,11 +302,27 @@ async def get_todos(
         query += f" AND description ILIKE ${len(params) + 1}"
         params.append(f"%{desc_search.strip()}%")
         
-    # Search for payload using FTS (@@)
-    if payload_search:
-        query += f" AND to_tsvector('simple', payload::text) @@ websearch_to_tsquery('simple', ${len(params) + 1})"
-        params.append(payload_search.strip())
+    # (Option 1) When searching for an exact word match
+    # # Search for payload using FTS (@@)
+    # if payload_search:
+    #     query += f" AND to_tsvector('simple', payload::text) @@ websearch_to_tsquery('simple', ${len(params) + 1})"
+    #     params.append(payload_search.strip())
         
+    # (Option 2) When searching for a partial word match
+    # Search for payload combining FTS and JSONB array/text searches
+    if payload_search:
+        ts_index = len(params) + 1
+        like_index = ts_index + 1
+        query += f""" AND (
+            to_tsvector('simple', payload::text) @@ websearch_to_tsquery('simple', ${ts_index})
+            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(payload->'tags') AS v WHERE v ILIKE ${like_index})
+            OR payload->>'priority' ILIKE ${like_index}
+            OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(payload->'attachments') AS v WHERE v ILIKE ${like_index})
+            OR payload->>'notes' ILIKE ${like_index}
+        )"""
+        params.append(payload_search.strip())
+        params.append(f"%{payload_search.strip()}%")
+
     query += " ORDER BY due_date ASC"
 
     async with db_pool.acquire() as conn:
