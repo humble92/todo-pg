@@ -84,9 +84,10 @@ db_pool = None
 async def startup():
     global db_pool
     # Create database connection pool when app starts
-    db_pool = await asyncpg.create_pool(DATABASE_URL,
-        init=lambda conn: conn.execute("SET search_path TO todo_app")
-    )
+    async def _init_connection(conn):
+        # Ensure schema resolution for every pooled connection
+        await conn.execute("SET search_path TO todo_app, public")
+    db_pool = await asyncpg.create_pool(DATABASE_URL, init=_init_connection, min_size=1, max_size=10)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -172,7 +173,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except jwt.PyJWTError:
         raise credentials_exception
     
+    # Defensive: ensure search_path is correct for acquired connection, too
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         user_record = await conn.fetchrow("SELECT id, email, password_hash FROM users WHERE email = $1", email)
     
     if user_record is None:
@@ -187,6 +190,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 @app.post("/api/auth/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 async def register_user(user: UserCreate):
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         existing_user = await conn.fetchval("SELECT id FROM users WHERE email = $1", user.email)
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered.")
@@ -201,11 +205,12 @@ async def register_user(user: UserCreate):
             """,
             user.email, password_hash, user.slack_channel
         )
-    return new_user_record
+    return UserPublic.model_validate(dict(new_user_record))
 
 @app.post("/api/auth/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         user_record = await conn.fetchrow("SELECT * FROM users WHERE email = $1", form_data.username)
 
     if not user_record or not verify_password(form_data.password, user_record['password_hash']):
@@ -237,12 +242,19 @@ async def root():
 
 @app.get("/healthz")
 async def healthz():
-    return {"ok": True}
+    # basic DB connectivity check too (non-fatal)
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute("SELECT 1")
+        return {"ok": True, "db": "up"}
+    except Exception:
+        return {"ok": True, "db": "down"}
 
 # === 5.2 Todos API ===
 @app.post("/api/todos", response_model=TodoPublic, status_code=status.HTTP_201_CREATED)
 async def create_todo(todo: TodoCreate, current_user: UserInDB = Depends(get_current_user)):
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         new_todo_record = await conn.fetchrow(
             """
             INSERT INTO todos (user_id, description, due_date, payload)
@@ -275,6 +287,7 @@ async def get_todos(
     query += " ORDER BY due_date ASC"
 
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         todo_records = await conn.fetch(query, *params)
         
     return [TodoPublic.model_validate(dict(record)) for record in todo_records] # Pydantic v2
@@ -282,6 +295,7 @@ async def get_todos(
 @app.get("/api/todos/{todo_id}", response_model=TodoPublic)
 async def get_todo_by_id(todo_id: int, current_user: UserInDB = Depends(get_current_user)):
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         todo_record = await conn.fetchrow(
             "SELECT * FROM todos WHERE id = $1 AND user_id = $2",
             todo_id, current_user.id
@@ -307,6 +321,7 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate, current_user: UserI
     params = [todo_id] + list(update_data.values()) + [current_user.id]
 
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         updated_record = await conn.fetchrow(query, *params)
 
     if not updated_record:
@@ -316,6 +331,7 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate, current_user: UserI
 @app.delete("/api/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_todo(todo_id: int, current_user: UserInDB = Depends(get_current_user)):
     async with db_pool.acquire() as conn:
+        await conn.execute("SET search_path TO todo_app, public")
         result = await conn.execute(
             "DELETE FROM todos WHERE id = $1 AND user_id = $2",
             todo_id, current_user.id
