@@ -38,6 +38,7 @@ import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
+import json
 
 # --- 1. Setup and initialization ---
 load_dotenv()
@@ -159,6 +160,28 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
+# --- Utility: normalize JSONB payload from DB ---
+def _parse_payload_value(value):
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if text == "" or text.lower() == "null":
+            return None
+        try:
+            return json.loads(text)
+        except Exception:
+            return None
+    return value
+
+def _coerce_todo_record(record) -> dict:
+    data = dict(record)
+    if 'payload' in data:
+        data['payload'] = _parse_payload_value(data['payload'])
+    return data
+
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -261,9 +284,9 @@ async def create_todo(todo: TodoCreate, current_user: UserInDB = Depends(get_cur
             VALUES ($1, $2, $3, $4)
             RETURNING *
             """,
-            current_user.id, todo.description, todo.due_date, todo.payload
+            current_user.id, todo.description, todo.due_date, json.dumps(todo.payload) if todo.payload else None
         )
-    return TodoPublic.model_validate(dict(new_todo_record))
+    return TodoPublic.model_validate(_coerce_todo_record(new_todo_record))
 
 @app.get("/api/todos", response_model=List[TodoPublic])
 async def get_todos(
@@ -290,7 +313,7 @@ async def get_todos(
         await conn.execute("SET search_path TO todo_app, public")
         todo_records = await conn.fetch(query, *params)
         
-    return [TodoPublic.model_validate(dict(record)) for record in todo_records] # Pydantic v2
+    return [TodoPublic.model_validate(_coerce_todo_record(record)) for record in todo_records] # Pydantic v2
 
 @app.get("/api/todos/{todo_id}", response_model=TodoPublic)
 async def get_todo_by_id(todo_id: int, current_user: UserInDB = Depends(get_current_user)):
@@ -302,7 +325,7 @@ async def get_todo_by_id(todo_id: int, current_user: UserInDB = Depends(get_curr
         )
     if not todo_record:
         raise HTTPException(status_code=404, detail="Todo not found.")
-    return TodoPublic.model_validate(dict(todo_record))
+    return TodoPublic.model_validate(_coerce_todo_record(todo_record))
 
 @app.patch("/api/todos/{todo_id}", response_model=TodoPublic)
 async def update_todo(todo_id: int, todo_update: TodoUpdate, current_user: UserInDB = Depends(get_current_user)):
@@ -315,6 +338,10 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate, current_user: UserI
     if 'completed' in update_data:
         update_data['completed_at'] = datetime.now(timezone.utc) if update_data['completed'] else None
 
+    # Convert payload dict to JSON string for JSONB column
+    if 'payload' in update_data and update_data['payload'] is not None:
+        update_data['payload'] = json.dumps(update_data['payload'])
+
     set_clauses = [f"{key} = ${i+2}" for i, key in enumerate(update_data.keys())]
     query = f"UPDATE todos SET {', '.join(set_clauses)} WHERE id = $1 AND user_id = ${len(update_data) + 2} RETURNING *"
     
@@ -326,7 +353,7 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate, current_user: UserI
 
     if not updated_record:
         raise HTTPException(status_code=404, detail="Todo not found or no permission to update.")
-    return TodoPublic.model_validate(dict(updated_record))
+    return TodoPublic.model_validate(_coerce_todo_record(updated_record))
 
 @app.delete("/api/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_todo(todo_id: int, current_user: UserInDB = Depends(get_current_user)):
