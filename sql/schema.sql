@@ -76,7 +76,25 @@ CREATE TABLE scheduled_reminders (
     visibility_timeout TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     started_at TIMESTAMPTZ,
-    posted_at TIMESTAMPTZ
+    posted_at TIMESTAMPTZ,
+    error TEXT NULL
 );
+-- Unique index to prevent duplicate entries for the same todo_id.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_todo_id ON scheduled_reminders (todo_id);
 -- Composite index for workers to efficiently find tasks to process.
 CREATE INDEX idx_scheduled_reminders_for_worker ON scheduled_reminders (status, scheduled_for);
+-- =================================================================
+-- FUNCTIONS & TRIGGERS
+-- =================================================================
+-- Notify workers when status is pending.
+CREATE OR REPLACE FUNCTION notify_pending() RETURNS TRIGGER AS $$
+BEGIN
+  IF (NEW.status = 'pending') THEN
+    PERFORM pg_notify('reminder_pending', NEW.id::text);
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+-- Trigger to notify workers when status is pending.
+CREATE TRIGGER trg_notify_pending
+AFTER INSERT OR UPDATE OF status ON scheduled_reminders
+FOR EACH ROW EXECUTE FUNCTION notify_pending();

@@ -1,5 +1,3 @@
-compose.yaml
-
 sql/create_user.sql
 
 .env
