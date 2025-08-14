@@ -9,6 +9,9 @@
 --    CREATE EXTENSION IF NOT EXISTS pg_cron;
 --
 -- After enabling pg_cron, run this file against the 'slack_todo_db' database.
+-- For manual trigger: 
+-- 1) SELECT todo_app.enqueue_due_today();
+-- 2) SELECT pg_notify('reminder_pending','manual_trigger');
 
 -- Use the app schema first
 SET search_path TO todo_app, public;
@@ -21,7 +24,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     INSERT INTO todo_app.scheduled_reminders (todo_id, user_id, scheduled_for, status)
-    SELECT t.id, t.user_id, t.due_date, 'pending'
+    SELECT t.id, t.user_id, now(), 'pending'
     FROM todo_app.todos AS t
     WHERE COALESCE(t.completed, false) = false
       AND t.due_date::date = CURRENT_DATE

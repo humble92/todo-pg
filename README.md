@@ -2,7 +2,7 @@
 
 Exploring Postgres 17 via demo of Postgres-only Slack Shared Todo App Backend
 
-## In place of Redis
+## In place of Redis/SQS/Kafka
 
 ```
 +----------------------+          enqueue (INSERT)          +----------------------------------+

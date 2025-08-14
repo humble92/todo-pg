@@ -9,11 +9,18 @@ services:
         "shared_preload_libraries=pg_cron",
         "-c",
         "cron.database_name=slack_todo_db",
+        "-c",
+        "max_connections=200",
       ]
     restart: always
     shm_size: 128mb
     ports:
       - "5432:5432" # Map host port 5432 to container port 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     # or set shared memory limit when deploy via swarm stack
     #volumes:
     #  - type: tmpfs
@@ -29,9 +36,40 @@ services:
 
   adminer:
     image: adminer
+    depends_on:
+      db:
+        condition: service_healthy
     restart: always
     ports:
       - 8080:8080
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    environment:
+      # DB connection
+      DB_USER: ${DB_USER:-slack_todo_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-slack_todo_db}
+      # Slack
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      # Worker tuning (optional overrides)
+      REMINDER_WORKER_BATCH: ${REMINDER_WORKER_BATCH:-10}
+      REMINDER_VISIBILITY_TIMEOUT_SECS: ${REMINDER_VISIBILITY_TIMEOUT_SECS:-300}
+      REMINDER_MAX_RETRIES: ${REMINDER_MAX_RETRIES:-5}
+      REMINDER_BACKOFF_BASE_SECS: ${REMINDER_BACKOFF_BASE_SECS:-60}
+      REMINDER_BACKOFF_MAX_SECS: ${REMINDER_BACKOFF_MAX_SECS:-3600}
+      REMINDER_POLL_INTERVAL_SECS: ${REMINDER_POLL_INTERVAL_SECS:-5}
+      REMINDER_POOL_MIN_SIZE: ${REMINDER_POOL_MIN_SIZE:-1}
+      REMINDER_POOL_MAX_SIZE: ${REMINDER_POOL_MAX_SIZE:-3}
+      REMINDER_POOL_MAX_INACTIVE_LIFETIME: ${REMINDER_POOL_MAX_INACTIVE_LIFETIME:-60}
 
 volumes:
   db-data: # Define the named volume
