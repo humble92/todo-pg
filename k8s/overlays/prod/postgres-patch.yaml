@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          args:
+            - postgres
+            - -c
+            - shared_preload_libraries=pg_cron
+            - -c
+            - cron.database_name=slack_todo_db
+            - -c
+            - max_connections=300
+            - -c
+            - shared_buffers=256MB
+            - -c
+            - effective_cache_size=1GB
+            - -c
+            - maintenance_work_mem=64MB
+            - -c
+            - checkpoint_completion_target=0.9
+            - -c
+            - wal_buffers=16MB
+            - -c
+            - default_statistics_target=100
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        resources:
+          requests:
+            storage: 20Gi
+        # in production environment, use faster storage class
+        # storageClassName: fast-ssd

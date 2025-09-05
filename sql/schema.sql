@@ -14,6 +14,8 @@ SET search_path TO todo_app;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- Enables the pg_trgm extension for trigram search.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- Enables pg_cron extension for scheduled jobs
+CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- Defines an ENUM type for the status of the scheduled_reminders table.
 CREATE TYPE reminder_status AS ENUM ('pending', 'processing', 'sent', 'failed');
 -- =================================================================
@@ -59,6 +61,9 @@ CREATE TABLE todos (
 CREATE INDEX idx_todos_payload_fts ON todos USING GIN (to_tsvector('simple', payload::text));
 -- Creates a GIN index using pg_trgm on the description column.
 -- This index makes ILIKE or SIMILARITY searches very fast.
+-- ILIKE search: SELECT * FROM todos WHERE description ILIKE '%buy%';
+-- Similarity search: SELECT * FROM todos WHERE description % 'buy milk';
+-- Distance search: SELECT * FROM todos WHERE description <-> 'buy milk' ORDER BY description <-> 'buy milk';
 CREATE INDEX idx_todos_description_trgm ON todos USING GIN (description gin_trgm_ops);
 -- Index for quickly finding todos sorted by due_date.
 CREATE INDEX idx_todos_due_date ON todos (due_date);
@@ -87,6 +92,7 @@ CREATE INDEX idx_scheduled_reminders_for_worker ON scheduled_reminders (status, 
 -- FUNCTIONS & TRIGGERS
 -- =================================================================
 -- Notify workers when status is pending.
+-- Channel name: reminder_pending
 CREATE OR REPLACE FUNCTION notify_pending() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'pending') THEN
@@ -98,3 +104,17 @@ END; $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_notify_pending
 AFTER INSERT OR UPDATE OF status ON scheduled_reminders
 FOR EACH ROW EXECUTE FUNCTION notify_pending();
+
+-- =================================================================
+-- PRIVILEGES
+-- =================================================================
+-- Grant privileges to todo_app schema
+GRANT ALL ON SCHEMA todo_app TO slack_todo_user;
+GRANT ALL ON ALL TABLES IN SCHEMA todo_app TO slack_todo_user;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA todo_app TO slack_todo_user;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA todo_app TO slack_todo_user;
+
+-- Set default privileges for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA todo_app GRANT ALL ON TABLES TO slack_todo_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA todo_app GRANT ALL ON SEQUENCES TO slack_todo_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA todo_app GRANT ALL ON FUNCTIONS TO slack_todo_user;

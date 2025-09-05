@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: todo-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # uncomment if you need to use SSL certificate
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  # uncomment if you need to use SSL certificate
+  tls:
+    - hosts:
+        - api-todo-54.242.163.78.nip.io
+        - admin-todo-54.242.163.78.nip.io
+  #     secretName: todo-app-tls
+  ingressClassName: nginx
+  rules:
+    # API service
+    - host: api-todo-54.242.163.78.nip.io # change to your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fastapi-service
+                port:
+                  number: 8000
+    # Adminer service (optional)
+    - host: admin-todo-54.242.163.78.nip.io # change to your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: adminer-service
+                port:
+                  number: 8080
+
+---
+# # LoadBalancer (cloud environment)
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: fastapi-loadbalancer
+#   labels:
+#     app: fastapi-app
+# spec:
+#   type: LoadBalancer
+#   ports:
+#     - port: 80
+#       targetPort: 8000
+#       protocol: TCP
+#       name: http
+#   selector:
+#     app: fastapi-app

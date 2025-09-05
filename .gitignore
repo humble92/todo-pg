@@ -1,4 +1,5 @@
 sql/create_user.sql
+sql/init-db.sql
 
 .env
 
@@ -7,3 +8,5 @@ __pycache__/
 .gemini/
 
 .vscode/
+
+**/secrets.yaml

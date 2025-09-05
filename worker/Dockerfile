@@ -11,10 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY worker /app/worker
+COPY . /app
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-u", "worker/reminder_worker.py"]
-
-
+CMD ["python", "-u", "reminder_worker.py"]

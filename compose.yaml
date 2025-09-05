@@ -45,8 +45,8 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: worker/Dockerfile
+      context: ./worker
+      dockerfile: Dockerfile
     depends_on:
       db:
         condition: service_healthy
@@ -67,6 +67,8 @@ services:
       REMINDER_BACKOFF_BASE_SECS: ${REMINDER_BACKOFF_BASE_SECS:-60}
       REMINDER_BACKOFF_MAX_SECS: ${REMINDER_BACKOFF_MAX_SECS:-3600}
       REMINDER_POLL_INTERVAL_SECS: ${REMINDER_POLL_INTERVAL_SECS:-5}
+      REMINDER_POLL_INTERVAL_MIN_SECS: ${REMINDER_POLL_INTERVAL_MIN_SECS:-5}
+      REMINDER_POLL_INTERVAL_MAX_SECS: ${REMINDER_POLL_INTERVAL_MAX_SECS:-43200}
       REMINDER_POOL_MIN_SIZE: ${REMINDER_POOL_MIN_SIZE:-1}
       REMINDER_POOL_MAX_SIZE: ${REMINDER_POOL_MAX_SIZE:-3}
       REMINDER_POOL_MAX_INACTIVE_LIFETIME: ${REMINDER_POOL_MAX_INACTIVE_LIFETIME:-60}

@@ -44,6 +44,70 @@ CREATE INDEX idx_todos_payload_fts ON todos USING GIN (to_tsvector('simple', pay
 CREATE INDEX idx_todos_description_trgm ON todos USING GIN (description gin_trgm_ops);
 ```
 
+## Installation
+
+### Prerequisites
+
+**Environment Variables**: Create a `.env` file in the project root:
+```bash
+# Database Configuration
+POSTGRES_PASSWORD=your-strong-postgres-password
+POSTGRES_USER=postgres
+POSTGRES_DB=postgres
+DB_USER=slack_todo_user
+DB_PASSWORD=your-db-user-password
+DB_NAME=slack_todo_db
+
+# Slack Configuration
+SLACK_BOT_TOKEN=your-slack-bot-token
+```
+
+### Method 1. Using Serverside Bakend and Docker Compose
+
+#### 1. Database Setup
+For detailed database setup instructions, see [db/README.md](db/README.md).
+
+#### 2. Start Database and worker Services
+```bash
+# Start database, worker, and adminer
+docker compose up -d
+
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f
+```
+
+#### 3. Start Backend Service
+
+```bash
+# Create virtual environment
+uv venv
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/Mac
+# or
+.venv\Scripts\activate     # Windows
+
+# Install dependencies
+uv pip install -r requirements.txt
+
+# Run FastAPI with hot reload
+uvicorn main:app --reload
+```
+
+##### Services:
+
+- **Database**: PostgreSQL with pg_cron extension
+- **Worker**: Background reminder processing
+- **Adminer**: Database administration UI
+- **FastAPI**: REST API Backend
+
+### Using K8s
+
+For detailed setup instructions, see [k8s/README.md](k8s/README.md).
+
 ## Frontend
 
 https://github.com/humble92/todo-react

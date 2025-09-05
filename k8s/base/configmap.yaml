@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-app-config
+data:
+  # Database configuration
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "slack_todo_db"
+  DB_USER: "slack_todo_user"
+
+  # JWT configuration
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+
+  # CORS origins
+  CORS_ORIGINS: "http://localhost:8000,https://api-todo-54.242.163.78.nip.io,https://admin-todo-54.242.163.78.nip.io"
+
+  # Worker tuning parameters
+  REMINDER_WORKER_BATCH: "10"
+  REMINDER_VISIBILITY_TIMEOUT_SECS: "300"
+  REMINDER_MAX_RETRIES: "5"
+  REMINDER_BACKOFF_BASE_SECS: "60"
+  REMINDER_BACKOFF_MAX_SECS: "3600"
+  REMINDER_POLL_INTERVAL_SECS: "5"
+  REMINDER_POLL_INTERVAL_MIN_SECS: "5"
+  REMINDER_POLL_INTERVAL_MAX_SECS: "43200"
+  REMINDER_POOL_MIN_SIZE: "1"
+  REMINDER_POOL_MAX_SIZE: "3"
+  REMINDER_POOL_MAX_INACTIVE_LIFETIME: "60"
+
+  # Slack API
+  SLACK_API_BASE: "https://slack.com/api"

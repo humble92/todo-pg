@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reminder-worker
+  labels:
+    app: reminder-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reminder-worker
+  template:
+    metadata:
+      labels:
+        app: reminder-worker
+    spec:
+      containers:
+        - name: reminder-worker
+          # Change to your image registry
+          image: humble92/todo-worker:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            # Database configuration from ConfigMap
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: DB_USER
+            # Database password from Secret
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: DB_PASSWORD
+            # Slack API configuration
+            - name: SLACK_API_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: SLACK_API_BASE
+            # Slack Bot Token from Secret
+            - name: SLACK_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: todo-app-secrets
+                  key: SLACK_BOT_TOKEN
+            # Worker configuration from ConfigMap
+            - name: REMINDER_WORKER_BATCH
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_WORKER_BATCH
+            - name: REMINDER_VISIBILITY_TIMEOUT_SECS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_VISIBILITY_TIMEOUT_SECS
+            - name: REMINDER_MAX_RETRIES
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_MAX_RETRIES
+            - name: REMINDER_BACKOFF_BASE_SECS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_BACKOFF_BASE_SECS
+            - name: REMINDER_BACKOFF_MAX_SECS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_BACKOFF_MAX_SECS
+            - name: REMINDER_POLL_INTERVAL_SECS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_POLL_INTERVAL_SECS
+            - name: REMINDER_POLL_INTERVAL_MIN_SECS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_POLL_INTERVAL_MIN_SECS
+            - name: REMINDER_POLL_INTERVAL_MAX_SECS
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_POLL_INTERVAL_MAX_SECS
+            - name: REMINDER_POOL_MIN_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_POOL_MIN_SIZE
+            - name: REMINDER_POOL_MAX_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_POOL_MAX_SIZE
+            - name: REMINDER_POOL_MAX_INACTIVE_LIFETIME
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: REMINDER_POOL_MAX_INACTIVE_LIFETIME
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          # Log to stdout, so no separate health check is set
+          # For Worker, it's better not to set liveness probe because it processes jobs periodically

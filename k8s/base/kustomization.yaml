@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: todo-app
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - configmap.yaml
+  - postgres-init-configmap.yaml
+  - postgres-statefulset.yaml
+  - fastapi-deployment.yaml
+  - worker-deployment.yaml
+  - adminer-deployment.yaml
+  - ingress.yaml
+
+# manage image tags
+images:
+  - name: humble92/todo-fastapi
+    newTag: latest
+  - name: humble92/todo-worker
+    newTag: latest
+
+# add common labels
+commonLabels:
+  app.kubernetes.io/name: todo-app
+  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/part-of: slack-todo-reminder

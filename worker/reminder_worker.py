@@ -33,6 +33,8 @@ MAX_RETRIES = int(os.getenv("REMINDER_MAX_RETRIES", "5"))
 BACKOFF_BASE_SECS = int(os.getenv("REMINDER_BACKOFF_BASE_SECS", "60"))  # 1 minute
 BACKOFF_MAX_SECS = int(os.getenv("REMINDER_BACKOFF_MAX_SECS", "3600"))  # 1 hour cap
 POLL_INTERVAL_SECS = float(os.getenv("REMINDER_POLL_INTERVAL_SECS", "5"))
+POLL_INTERVAL_MIN_SECS = float(os.getenv("REMINDER_POLL_INTERVAL_MIN_SECS", "5"))  # minimum polling interval
+POLL_INTERVAL_MAX_SECS = float(os.getenv("REMINDER_POLL_INTERVAL_MAX_SECS", "43200"))  # 3600 * 12 (12 hours), maximum polling interval
 POOL_MIN_SIZE = int(os.getenv("REMINDER_POOL_MIN_SIZE", "1"))
 POOL_MAX_SIZE = int(os.getenv("REMINDER_POOL_MAX_SIZE", "3"))
 POOL_MAX_INACTIVE_LIFETIME = int(os.getenv("REMINDER_POOL_MAX_INACTIVE_LIFETIME", "60"))
@@ -275,16 +277,45 @@ async def main() -> None:
     listener_task = asyncio.create_task(listen_notifications(pool, wake_event))
     print("Reminder worker started. Waiting for jobs…")
 
+    # Adaptive polling variables
+    current_poll_interval = POLL_INTERVAL_SECS
+    consecutive_empty_batches = 0
+    max_consecutive_empty = 2  # After 2 consecutive empty batches, increase interval
+
     try:
         while True:
             # Process immediately if notified; otherwise poll periodically
             try:
-                await asyncio.wait_for(wake_event.wait(), timeout=POLL_INTERVAL_SECS)
+                await asyncio.wait_for(wake_event.wait(), timeout=current_poll_interval)
                 wake_event.clear()
+                # When event occurs, reset poll interval to minimum
+                consecutive_empty_batches = 0
+                current_poll_interval = POLL_INTERVAL_MIN_SECS
+                print("Event received, resetting poll interval to minimum")
             except asyncio.TimeoutError:
                 pass
 
             processed = await process_batch(pool)
+            
+            # Adaptive polling interval adjustment
+            if processed == 0:
+                consecutive_empty_batches += 1
+                # The more consecutive empty batches, the greater the poll interval
+                if consecutive_empty_batches >= max_consecutive_empty:
+                    new_interval = min(
+                        current_poll_interval * 1.5, 
+                        POLL_INTERVAL_MAX_SECS
+                    )
+                    if new_interval != current_poll_interval:
+                        current_poll_interval = new_interval
+                        print(f"Empty batches: {consecutive_empty_batches}, "
+                              f"increasing poll interval to {current_poll_interval:.1f}s")
+            else:
+                # reset poll interval to minimum when jobs are processed
+                consecutive_empty_batches = 0
+                current_poll_interval = POLL_INTERVAL_MIN_SECS
+                print(f"Processed {processed} jobs, resetting poll interval to {current_poll_interval}s")
+            
             # If we processed a full batch, loop again immediately to drain
             if processed >= MAX_BATCH:
                 continue
