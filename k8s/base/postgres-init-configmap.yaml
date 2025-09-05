@@ -22,22 +22,12 @@ data:
     -- WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname='slack_todo_user')\gexec
     -- SELECT 'CREATE USER slack_todo_user WITH PASSWORD ''' || :'DB_PASSWORD' || ''';'
     -- WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname='slack_todo_user')\gexec
-    DO
-    $$
-    BEGIN
-      IF NOT EXISTS (
-          SELECT FROM pg_catalog.pg_roles WHERE rolname = 'slack_todo_user'
-      ) THEN
-          CREATE ROLE slack_todo_user LOGIN PASSWORD 'SHOULD_BE_REPLACED_WITH_DB_PASSWORD';
-      END IF;
-    END
-    $$;
+    CREATE USER slack_todo_user WITH PASSWORD 'your-db-user-password-there';
 
     -- Grant privileges
     GRANT ALL PRIVILEGES ON DATABASE slack_todo_db TO slack_todo_user;
     GRANT ALL ON SCHEMA public TO slack_todo_user;
 
-  02-schema.sql: |
     -- =================================================================
     -- DATABASE & SCHEMA CREATION
     -- =================================================================

@@ -7,7 +7,7 @@
 Change the password in `postgres-init-configmap.yaml`
 
 ```base
-CREATE ROLE slack_todo_user LOGIN PASSWORD 'SHOULD_BE_REPLACED_WITH_DB_PASSWORD';
+CREATE USER slack_todo_user WITH PASSWORD 'SHOULD_BE_REPLACED_WITH_DB_PASSWORD';
 ```
 
 ### Database Initialization Order
