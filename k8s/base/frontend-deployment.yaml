@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-app
+  labels:
+    app: frontend-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-app
+  template:
+    metadata:
+      labels:
+        app: frontend-app
+    spec:
+      containers:
+        - name: frontend-app
+          image: humble92/todo-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          env:
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: todo-app-config
+                  key: BACKEND_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  labels:
+    app: frontend-app
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: frontend-app

@@ -3,5 +3,6 @@ kind: ConfigMap
 metadata:
   name: todo-app-config
 data:
-  # Override DB_HOST for prod environment with namePrefix
+  # Override for prod environment with namePrefix
   DB_HOST: "prod-postgres-service"
+  BACKEND_URL: "http://prod-fastapi-service:8000"

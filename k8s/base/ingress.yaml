@@ -11,23 +11,35 @@ spec:
   # uncomment if you need to use SSL certificate
   tls:
     - hosts:
-        - api-todo-54.242.163.78.nip.io
+        # - api-todo-54.242.163.78.nip.io
+        - todo-54.242.163.78.nip.io
         - admin-todo-54.242.163.78.nip.io
-  #     secretName: todo-app-tls
+      secretName: todo-app-tls
   ingressClassName: nginx
   rules:
-    # API service
-    - host: api-todo-54.242.163.78.nip.io # change to your domain
+    # # API service
+    # - host: api-todo-54.242.163.78.nip.io # change to your domain
+    #   http:
+    #     paths:
+    #       - path: /
+    #         pathType: Prefix
+    #         backend:
+    #           service:
+    #             name: fastapi-service
+    #             port:
+    #               number: 8000
+    # Frontend service + API service for backend (reverse proxy)
+    - host: todo-54.242.163.78.nip.io # change to your domain
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: fastapi-service
+                name: frontend-service
                 port:
-                  number: 8000
-    # Adminer service (optional)
+                  number: 80
+    # Adminer service (optional for database management)
     - host: admin-todo-54.242.163.78.nip.io # change to your domain
       http:
         paths:

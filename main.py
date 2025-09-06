@@ -270,8 +270,8 @@ async def healthz():
         async with db_pool.acquire() as conn:
             await conn.execute("SELECT 1")
         return {"ok": True, "db": "up"}
-    except Exception:
-        return {"ok": True, "db": "down"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Database not ready: {e}")
 
 # === 5.2 Todos API ===
 @app.post("/api/todos", response_model=TodoPublic, status_code=status.HTTP_201_CREATED)

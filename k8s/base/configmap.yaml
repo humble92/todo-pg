@@ -16,6 +16,9 @@ data:
   # CORS origins
   CORS_ORIGINS: "http://localhost:8000,https://api-todo-54.242.163.78.nip.io,https://admin-todo-54.242.163.78.nip.io"
 
+  # Frontend configuration
+  BACKEND_URL: "http://fastapi-service:8000"
+
   # Worker tuning parameters
   REMINDER_WORKER_BATCH: "10"
   REMINDER_VISIBILITY_TIMEOUT_SECS: "300"

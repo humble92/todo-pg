@@ -12,6 +12,7 @@ resources:
   - fastapi-deployment.yaml
   - worker-deployment.yaml
   - adminer-deployment.yaml
+  - frontend-deployment.yaml
   - ingress.yaml
 
 # manage image tags
@@ -19,6 +20,8 @@ images:
   - name: humble92/todo-fastapi
     newTag: latest
   - name: humble92/todo-worker
+    newTag: latest
+  - name: humble92/todo-frontend
     newTag: latest
 
 # add common labels
